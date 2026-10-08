@@ -69,8 +69,8 @@ table.l{width:100%;border-collapse:collapse;font-size:13px}table.l th,table.l td
   <div><label>Tên LK * (≥10 ký tự)</label><input id="f_tlk"><div class="err" id="e_f_tlk"></div></div>
   <div><label>Số lượng</label><input id="f_sl" type="number" min="1" value="1"><div class="err" id="e_f_sl"></div></div>
   <div><label>Tình trạng LK</label><input id="f_tt" value="LK Tốt Bóc Tách"></div>
-  <div><label>Số PBH khách</label><input id="f_khach"></div>
-  <div><label>Ghi chú</label><input id="f_gc" value="Biên bản bàn giao hàng hóa"></div>
+  <div><label>Số PBH khách *</label><input id="f_khach"><div class="err" id="e_f_khach"></div></div>
+  <div><label>Ghi chú</label><input id="f_gc" value="Biên bản bàn giao hàng hóa-"></div>
  </div>
  <div class="bar"><button class="btn" id="add">➕ Thêm vào danh sách</button><button class="btn g" id="send">📤 Send Admin</button><button class="btn w" id="xls">💾 Lưu Excel</button></div></div>
  <div class="card tbl"><b>Danh sách đề xuất</b><table class="l" id="list"></table></div>
@@ -104,22 +104,23 @@ const fmt=d=>`${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pa
 setInterval(()=>$('clock').textContent=fmt(new Date()),1000);$('clock').textContent=fmt(new Date());
 function chk(rules){let ok=true;for(const [id,test,msg] of rules){const el=$(id),v=el.value.trim(),good=test(v);el.classList.toggle('bad',!good);el.classList.toggle('ok',good);$('e_'+id).textContent=good?'':msg;ok=ok&&good}return ok}
 const pr=()=>[['p_name',v=>v.length>=10,'Tối thiểu 10 ký tự'],['p_id',v=>/^MM.{8}$/i.test(v),'Đủ 10 ký tự, bắt đầu MM'],['p_hub',v=>/^[SL].{3}$/i.test(v),'Đủ 4 ký tự, bắt đầu S hoặc L'],['p_kho',v=>/^[ML].{3}$/i.test(v),'Đủ 4 ký tự, bắt đầu M hoặc L'],['p_addr',v=>v.length>=10,'Tối thiểu 10 ký tự']];
-const fr=()=>[['f_pbh',v=>/^PBH.{6}$/i.test(v),'Đủ 9 ký tự, bắt đầu PBH'],['f_msp',v=>/^7\d{5}$/.test(v),'6 chữ số, bắt đầu 7'],['f_tsp',v=>v.length>=10,'Tối thiểu 10 ký tự'],['f_sn',v=>v.length>=10,'Tối thiểu 10 ký tự'],['f_mlk',v=>/^7\d{5}$/.test(v),'6 chữ số, bắt đầu 7'],['f_tlk',v=>v.length>=10,'Tối thiểu 10 ký tự'],['f_sl',v=>+v>=1,'Số lượng ≥ 1']];
+const fr=()=>[['f_pbh',v=>/^PBH.{6}$/i.test(v),'Đủ 9 ký tự, bắt đầu PBH'],['f_msp',v=>/^7\d{5}$/.test(v),'6 chữ số, bắt đầu 7'],['f_tsp',v=>v.length>=10,'Tối thiểu 10 ký tự'],['f_sn',v=>v.length>=10,'Tối thiểu 10 ký tự'],['f_mlk',v=>/^7\d{5}$/.test(v),'6 chữ số, bắt đầu 7'],['f_tlk',v=>v.length>=10,'Tối thiểu 10 ký tự'],['f_khach',v=>v.length>0,'Bắt buộc nhập Số PBH khách'],['f_sl',v=>+v>=1,'Số lượng ≥ 1']];
 const lock=()=>document.querySelectorAll('.nav button').forEach(b=>b.disabled=!profile);
 if(profile){$('p_name').value=profile.name;$('p_id').value=profile.id;$('p_hub').value=profile.hub;$('p_kho').value=profile.kho;$('p_addr').value=profile.addr}
 const DEF_URL='https://script.google.com/macros/s/AKfycbxFYEe4b-d4AORbO9fVD6BOTE1Z-4Jv9m17xixCAiTE9p5rRBkObqPBJnOV317YY1A/exec';
 if(!localStorage.getItem('mm_url'))localStorage.setItem('mm_url',DEF_URL);
 $('gs_url').value=localStorage.getItem('mm_url');lock();
+const DEFGC='Biên bản bàn giao hàng hóa-',setGc=()=>{$('f_gc').value=DEFGC+(profile?profile.kho:'')};setGc();
 $('saveProfile').onclick=()=>{if(!chk(pr()))return toast('Vui lòng kê khai đúng thông tin bắt buộc');
  profile={name:$('p_name').value.trim(),id:$('p_id').value.trim().toUpperCase(),hub:$('p_hub').value.trim().toUpperCase(),kho:$('p_kho').value.trim().toUpperCase(),addr:$('p_addr').value.trim()};
- localStorage.setItem('mm_profile',JSON.stringify(profile));lock();toast('Đã lưu thông tin kê khai');render()};
+ localStorage.setItem('mm_profile',JSON.stringify(profile));lock();setGc();toast('Đã lưu thông tin kê khai');render()};
 $('saveUrl').onclick=()=>{localStorage.setItem('mm_url',$('gs_url').value.trim());toast('Đã lưu kết nối')};
 document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('act',x===b));
  document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('act',p.id==='t_'+b.dataset.t));render()});
 if(!profile)toast('Hãy kê khai thông tin bắt buộc ở thanh bên trái');
 $('add').onclick=()=>{if(!profile)return toast('Chưa kê khai thông tin bắt buộc');if(!chk(fr()))return toast('Kiểm tra lại các ô báo lỗi');
- rows.push({ngay:fmt(new Date()),pbh:$('f_pbh').value.trim().toUpperCase(),msp:$('f_msp').value,tsp:$('f_tsp').value.trim(),sn:$('f_sn').value.trim(),mlk:$('f_mlk').value,tlk:$('f_tlk').value.trim(),sl:+$('f_sl').value,tt:$('f_tt').value||'LK Tốt Bóc Tách',khach:$('f_khach').value.trim(),gc:$('f_gc').value||'Biên bản bàn giao hàng hóa',...profile,sent:false});
- localStorage.setItem('mm_rows',JSON.stringify(rows));['f_pbh','f_msp','f_tsp','f_sn','f_mlk','f_tlk','f_khach'].forEach(i=>$(i).value='');$('f_sl').value=1;toast('Đã thêm vào danh sách');render()};
+ rows.push({ngay:fmt(new Date()),pbh:$('f_pbh').value.trim().toUpperCase(),msp:$('f_msp').value,tsp:$('f_tsp').value.trim(),sn:$('f_sn').value.trim(),mlk:$('f_mlk').value,tlk:$('f_tlk').value.trim(),sl:+$('f_sl').value,tt:$('f_tt').value||'LK Tốt Bóc Tách',khach:$('f_khach').value.trim(),gc:$('f_gc').value.trim()||DEFGC+profile.kho,...profile,sent:false});
+ localStorage.setItem('mm_rows',JSON.stringify(rows));['f_pbh','f_msp','f_tsp','f_sn','f_mlk','f_tlk','f_khach'].forEach(i=>$(i).value='');$('f_sl').value=1;setGc();toast('Đã thêm vào danh sách');render()};
 const ZALO='0367516590';
 $('send').onclick=async()=>{
  if(!rows.length)return toast('Chưa có dữ liệu để gửi');
@@ -134,11 +135,16 @@ $('send').onclick=async()=>{
  $('zfile').textContent=x.name;zmodal.style.display='flex'};
 $('zopen').onclick=()=>window.open('https://zalo.me/'+ZALO,'_blank');
 $('pull').onclick=async()=>{const url=localStorage.getItem('mm_url');if(!url)return toast('Chưa cấu hình URL Apps Script');
- try{const v=await (await fetch(url)).json();rows=v.map(a=>{const o={};K.forEach((k,i)=>o[k]=a[i]);o.sent=true;o.sl=+o.sl||1;return o});
-  localStorage.setItem('mm_rows',JSON.stringify(rows));toast('Đã đồng bộ '+rows.length+' dòng');render()}catch(e){toast('Không đọc được sheet: '+e.message)}};
+ if(!profile)return toast('Hãy kê khai & lưu thông tin (Code kho) trước khi đồng bộ');
+ try{const v=await (await fetch(url)).json();
+  const sheet=v.filter(a=>String(a[14]||'').trim().toUpperCase()===profile.kho).map(a=>{const o={};K.forEach((k,i)=>o[k]=a[i]);
+   if(/^\d{4}-\d{2}-\d{2}T/.test(o.ngay))o.ngay=fmt(new Date(o.ngay));
+   o.kho=String(a[14]||'').trim().toUpperCase();o.gc=String(a[10]||'');o.note=String(a[16]||'');o.sent=true;o.sl=+o.sl||1;return o});
+  rows=sheet.concat(rows.filter(r=>!r.sent));
+  localStorage.setItem('mm_rows',JSON.stringify(rows));toast('Đã đồng bộ '+sheet.length+' dòng của Code kho '+profile.kho);render()}catch(e){toast('Không đọc được sheet: '+e.message)}};
 function del(i){rows.splice(i,1);localStorage.setItem('mm_rows',JSON.stringify(rows));render()}
 function render(){
- $('list').innerHTML='<tr><th>#</th><th>Ngày</th><th>PBH</th><th>Mã LK</th><th>Tên LK</th><th>SL</th><th>PBH khách</th><th>Gửi</th><th></th></tr>'+rows.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r.ngay)}</td><td>${esc(r.pbh)}</td><td>${esc(r.mlk)}</td><td>${esc(r.tlk)}</td><td>${r.sl}</td><td>${esc(r.khach)}</td><td>${r.sent?'✅':'⏳'}</td><td><button class="btn w" onclick="del(${i})">✕</button></td></tr>`).join('');
+ $('list').innerHTML='<tr><th>#</th><th>Ngày</th><th>PBH</th><th>Mã LK</th><th>Tên LK</th><th>SL</th><th>PBH khách</th><th>Code kho</th><th>Ghi chú</th><th>Note Admin</th><th>Gửi</th><th></th></tr>'+rows.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r.ngay)}</td><td>${esc(r.pbh)}</td><td>${esc(r.mlk)}</td><td>${esc(r.tlk)}</td><td>${r.sl}</td><td>${esc(r.khach)}</td><td>${esc(r.kho)}</td><td>${esc(r.gc)}</td><td>${esc(r.note)}</td><td>${r.sent?'✅':'⏳'}</td><td><button class="btn w" onclick="del(${i})">✕</button></td></tr>`).join('');
  const p=profile||{name:'',id:'',hub:'',kho:'',addr:''},n=Math.max(3,rows.length),tot=rows.reduce((a,r)=>a+(+r.sl||0),0);
  const d0=rows.length?rows[rows.length-1].ngay:'';
  const bbr=Array.from({length:n},(_,i)=>{const r=rows[i]||{};return`<tr><td>${i+1}</td><td>${esc(r.ngay?.slice(0,10))}</td><td>${esc(r.pbh)}</td><td>${esc(r.mlk)}</td><td class="l">${esc(r.tlk)}</td><td>${r.sl??''}</td><td>${esc(r.tt)}</td><td>${rows[i]?esc(r.kho):''}</td><td>${esc(r.khach)}</td></tr>`}).join('');
