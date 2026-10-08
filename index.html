@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <title>Form Đề Xuất Tăng Tồn LK Bóc Tách</title>
 <style>
 :root{--red:#d71920;--ink:#1e2433;--mut:#6b7385;--bg:#f2f4f9;--card:#fff;--bd:#dde2ee}
@@ -27,8 +28,8 @@ table.l{width:100%;border-collapse:collapse;font-size:13px}table.l th,table.l td
 .tbl{overflow:auto}.pane{display:none}.pane.act{display:block}
 .sheetwrap{overflow:auto;background:#fff;padding:14px;border-radius:12px;box-shadow:0 2px 10px rgba(20,30,60,.07)}
 .toast{position:fixed;right:20px;bottom:20px;background:#1b2033;color:#fff;padding:12px 18px;border-radius:10px;display:none;z-index:9}
-#modal{position:fixed;inset:0;background:rgba(10,14,28,.6);display:none;align-items:center;justify-content:center;z-index:10}
-#modal div{background:#fff;border-radius:14px;padding:24px;max-width:460px}
+#modal,#zmodal{position:fixed;inset:0;background:rgba(10,14,28,.6);display:none;align-items:center;justify-content:center;z-index:10}
+#modal div,#zmodal div{background:#fff;border-radius:14px;padding:24px;max-width:460px}
 /* ===== Biểu mẫu ===== */
 .form{font-family:"Times New Roman",serif;font-size:14px;color:#000;background:#fff;width:1120px;margin:auto}
 .form table{border-collapse:collapse}.form .tb{width:100%}.form .tb td,.form .tb th{border:1px solid #000;padding:4px 5px;text-align:center;height:46px}
@@ -80,6 +81,7 @@ table.l{width:100%;border-collapse:collapse;font-size:13px}table.l th,table.l td
  <div class="bar"><button class="btn b" onclick="doPrint('t_dh','dhForm')">🖨 IN</button></div></section>
 </main>
 <div class="toast" id="toast"></div>
+<div id="zmodal"><div><h3>Gửi file cho Admin qua Zalo</h3><p>File <b id="zfile"></b> đã được tạo (và dữ liệu đã đẩy lên sheet).<br>Trình duyệt không thể tự đính kèm file vào Zalo, vui lòng bấm <b>Mở Zalo Admin</b> (0367516590) rồi gửi file vừa tải về.</p><button class="btn g" id="zopen">💬 Mở Zalo Admin</button> <button class="btn w" onclick="zmodal.style.display='none'">Đóng</button></div></div>
 <div id="modal"><div><h3>Đã in xong</h3><p>Vui lòng gửi bản ảnh biên bản cho admin.</p><button class="btn" onclick="modal.style.display='none'">Đã hiểu</button></div></div>
 <script>
 /* ===== Google Apps Script (dán vào Extensions > Apps Script của Google Sheet rồi Deploy > Web app, quyền "Anyone") =====
@@ -118,10 +120,19 @@ if(!profile)toast('Hãy kê khai thông tin bắt buộc ở thanh bên trái');
 $('add').onclick=()=>{if(!profile)return toast('Chưa kê khai thông tin bắt buộc');if(!chk(fr()))return toast('Kiểm tra lại các ô báo lỗi');
  rows.push({ngay:fmt(new Date()),pbh:$('f_pbh').value.trim().toUpperCase(),msp:$('f_msp').value,tsp:$('f_tsp').value.trim(),sn:$('f_sn').value.trim(),mlk:$('f_mlk').value,tlk:$('f_tlk').value.trim(),sl:+$('f_sl').value,tt:$('f_tt').value||'LK Tốt Bóc Tách',khach:$('f_khach').value.trim(),gc:$('f_gc').value||'Biên bản bàn giao hàng hóa',...profile,sent:false});
  localStorage.setItem('mm_rows',JSON.stringify(rows));['f_pbh','f_msp','f_tsp','f_sn','f_mlk','f_tlk','f_khach'].forEach(i=>$(i).value='');$('f_sl').value=1;toast('Đã thêm vào danh sách');render()};
-$('send').onclick=async()=>{const url=localStorage.getItem('mm_url'),pend=rows.filter(r=>!r.sent);
- if(!pend.length)return toast('Không có dòng mới để gửi');if(!url)return toast('Chưa cấu hình URL Apps Script (thanh bên trái)');
- try{await fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify({rows:pend})});
-  pend.forEach(r=>r.sent=true);localStorage.setItem('mm_rows',JSON.stringify(rows));toast('Đã gửi '+pend.length+' dòng lên sheet ĐX BT');render()}catch(e){toast('Gửi thất bại: '+e.message)}};
+const ZALO='0367516590';
+$('send').onclick=async()=>{
+ if(!rows.length)return toast('Chưa có dữ liệu để gửi');
+ const url=localStorage.getItem('mm_url'),pend=rows.filter(r=>!r.sent);
+ if(pend.length&&url){try{await fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify({rows:pend})});}catch(e){return toast('Gửi lên sheet thất bại: '+e.message)}}
+ if(pend.length){pend.forEach(r=>r.sent=true);localStorage.setItem('mm_rows',JSON.stringify(rows));render()}
+ const x=await buildXls();if(!x)return;
+ const file=new File([x.blob],x.name,{type:x.blob.type});
+ if(navigator.canShare&&navigator.canShare({files:[file]})){
+  try{await navigator.share({files:[file],title:'ĐX Tăng Tồn LK Bóc Tách',text:'Gửi Admin '+ZALO+' - chọn Zalo'});toast('Đã mở menu chia sẻ, hãy chọn Zalo');}catch(e){}
+ }else{const a=document.createElement('a');a.href=URL.createObjectURL(x.blob);a.download=x.name;a.click()}
+ $('zfile').textContent=x.name;zmodal.style.display='flex'};
+$('zopen').onclick=()=>window.open('https://zalo.me/'+ZALO,'_blank');
 $('pull').onclick=async()=>{const url=localStorage.getItem('mm_url');if(!url)return toast('Chưa cấu hình URL Apps Script');
  try{const v=await (await fetch(url)).json();rows=v.map(a=>{const o={};K.forEach((k,i)=>o[k]=a[i]);o.sent=true;o.sl=+o.sl||1;return o});
   localStorage.setItem('mm_rows',JSON.stringify(rows));toast('Đã đồng bộ '+rows.length+' dòng');render()}catch(e){toast('Không đọc được sheet: '+e.message)}};
@@ -149,11 +160,75 @@ function render(){
  <div class="sig" style="font-family:Calibri,Arial,sans-serif;font-weight:bold"><div>NHÂN VIÊN<br>ĐẶT HÀNG<br><span style="font-weight:normal">(Replenisher)<br>Họ tên (Full name)<br>${esc(p.name)}</span></div><div>Trưởng ngành hàng<br><span style="font-weight:normal">(Buyer Manager)<br>Họ tên (Full name)</span></div><div>Tổng giám đốc<br><span style="font-weight:normal">(Director)<br>Họ tên (Full name)</span></div></div>
  <div class="sig" style="margin-top:0;font-style:normal"><span>Ngày (Date)</span><span>Ngày (Date)</span><span>Ngày (Date)</span></div>`;
 }
-function saveXls(){if(!rows.length)return toast('Chưa có dữ liệu để lưu');
+async function buildXls(){
+ if(!rows.length){toast('Chưa có dữ liệu để lưu');return null}
+ if(typeof ExcelJS==='undefined'){toast('Cần kết nối Internet để tải thư viện Excel (ExcelJS)');return null}
+ const p=profile||{name:'',id:'',hub:'',kho:'',addr:''},d0=(rows[rows.length-1].ngay||'').slice(0,10),n=Math.max(3,rows.length),tot=rows.reduce((a,r)=>a+(+r.sl||0),0);
+ const wb=new ExcelJS.Workbook(),th={style:'thin',color:{argb:'FF000000'}},BD={top:th,left:th,bottom:th,right:th};
+ const box=(ws,r1,c1,r2,c2)=>{for(let r=r1;r<=r2;r++)for(let c=c1;c<=c2;c++)ws.getCell(r,c).border=BD};
+ const m=(ws,r1,c1,r2,c2,val,o={})=>{if(r1!==r2||c1!==c2)ws.mergeCells(r1,c1,r2,c2);const c=ws.getCell(r1,c1);c.value=val;
+  c.font={name:o.fn||'Times New Roman',size:o.sz||11,bold:!!o.b,italic:!!o.i,color:o.col?{argb:o.col}:undefined};
+  if(o.fill)c.fill={type:'pattern',pattern:'solid',fgColor:{argb:o.fill}};
+  c.alignment={horizontal:o.h||'left',vertical:o.v||'middle',wrapText:true};if(o.bd)box(ws,r1,c1,r2,c2);return c};
+ const rt=(l,v)=>({richText:[{font:{name:'Times New Roman',size:11,bold:true},text:l},{font:{name:'Times New Roman',size:11},text:v}]});
+ const setup=(ws,ori)=>{ws.pageSetup={paperSize:9,orientation:ori,fitToPage:true,fitToWidth:1,fitToHeight:1,horizontalCentered:true,margins:{left:.4,right:.4,top:.4,bottom:.4,header:.2,footer:.2}};ws.views=[{showGridLines:false}]};
+ const logoId=wb.addImage({base64:LOGO,extension:'png'});
+
+ /* ===== Sheet 1: Danh sách chi tiết ===== */
+ const s1=wb.addWorksheet('Danh sách chi tiết');
  const H=['STT','Ngày đề xuất','Số PBH nội bộ bóc tách','Mã SP','Tên SP','Serial No.','Mã LK','Tên LK','Số lượng','Tình trạng LK','Số PBH khách','Ghi chú','Họ Tên','Mã nhân viên','HUB','Code kho','Địa chỉ'];
- const body=rows.map((r,i)=>'<tr><td>'+(i+1)+'</td>'+['ngay','pbh','msp','tsp','sn','mlk','tlk','sl','tt','khach','gc','name','id','hub','kho','addr'].map(k=>'<td>'+esc(r[k])+'</td>').join('')+'</tr>').join('');
- const h='<html><head><meta charset="utf-8"><style>td,th{border:.5pt solid #000;font-family:Arial;mso-number-format:"\\@"}th{background:#d71920;color:#fff}</style></head><body><table><tr>'+H.map(x=>'<th>'+x+'</th>').join('')+'</tr>'+body+'</table></body></html>';
- const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+h],{type:'application/vnd.ms-excel'}));a.download='DX_Tang_Ton_LK_'+new Date().toISOString().slice(0,10)+'.xls';a.click();toast('Đã lưu file Excel')}
+ const W=[6,20,22,10,32,22,10,32,10,20,16,28,24,14,8,10,36];
+ s1.columns=W.map(w=>({width:w}));
+ s1.addRow(H);s1.getRow(1).height=32;
+ H.forEach((_,i)=>{const c=s1.getCell(1,i+1);c.font={name:'Arial',bold:true,color:{argb:'FFFFFFFF'}};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD71920'}};c.alignment={horizontal:'center',vertical:'middle',wrapText:true};c.border=BD});
+ rows.forEach((r,i)=>{const row=s1.addRow([i+1,...['ngay','pbh','msp','tsp','sn','mlk','tlk','sl','tt','khach','gc','name','id','hub','kho','addr'].map(k=>k==='sl'?+r[k]:String(r[k]??''))]);
+  row.height=24;row.eachCell({includeEmpty:true},(c,ci)=>{c.border=BD;c.font={name:'Arial',size:10};c.alignment={vertical:'middle',wrapText:true,horizontal:[1,4,7,9,15,16].includes(ci)?'center':'left'}})});
+ s1.views=[{state:'frozen',ySplit:1}];s1.autoFilter={from:{row:1,column:1},to:{row:1,column:17}};
+ s1.pageSetup={paperSize:9,orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0};
+
+ /* ===== Sheet 2: Biên bản bàn giao (A4 ngang, 1 trang) ===== */
+ const s2=wb.addWorksheet('Biên bản bàn giao');setup(s2,'landscape');
+ [5,13,14,11,44,6,20,11,20].forEach((w,i)=>s2.getColumn(i+1).width=w);
+ ['CÔNG TY CO PHAN MEDIAMART VIET NAM','29F Hai Ba Trung Str., Ha Noi, Viet Nam','Email: info@mediamart.com.vn','Đường dây nóng: 19006741 - 19006743','www.mediamart.com.vn'].forEach((t,i)=>m(s2,i+1,1,i+1,9,t,{h:'center',sz:12}));
+ s2.addImage(logoId,{tl:{col:0.1,row:0.15},ext:{width:174,height:48}});
+ m(s2,7,1,7,9,'BIÊN BẢN BÀN GIAO HÀNG HÓA',{b:true,h:'center',sz:14});s2.getRow(7).height=26;
+ const L=[['CN giao hàng: ',p.hub],['Người đại diện: ',p.name],['Số điện thoại',''],['Địa chỉ: ',p.addr]],R=[['CN nhận hàng: ',p.hub],['Người đại diện: ',''],['Số điện thoại',''],['Địa chỉ: ','']];
+ L.forEach((x,i)=>{m(s2,9+i,1,9+i,5,i==3?{richText:[{font:{name:'Times New Roman',size:11},text:x[0]+x[1]}]}:rt(x[0],x[1]));m(s2,9+i,6,9+i,9,i==3?{richText:[{font:{name:'Times New Roman',size:11},text:'Địa chỉ: '}]}:rt(R[i][0],R[i][1]));s2.getRow(9+i).height=20});
+ const hd=['STT','Ngày giao hàng','Số PBH','Mã LK','Tên LK','SL','Tình trạng chuyển hàng','Code kho','Cấp cho PBH'];
+ hd.forEach((t,i)=>m(s2,14,i+1,14,i+1,t,{b:true,h:'center',bd:true,sz:11}));s2.getRow(14).height=36;
+ for(let i=0;i<n;i++){const r=rows[i]||{},R0=15+i;s2.getRow(R0).height=26;
+  [i+1,(r.ngay||'').slice(0,10),r.pbh||'',r.mlk||'',r.tlk||'',r.sl??'',r.tt||'',rows[i]?r.kho:'',r.khach||''].forEach((v,ci)=>m(s2,R0,ci+1,R0,ci+1,v,{bd:true,h:ci==4?'left':'center'}))}
+ const tr=15+n;s2.getRow(tr).height=26;m(s2,tr,1,tr,5,'Tổng:',{b:true,h:'center',bd:true});m(s2,tr,6,tr,6,tot,{b:true,h:'center',bd:true});m(s2,tr,7,tr,9,'',{bd:true});
+ m(s2,tr+2,1,tr+7,5,'ĐẠI DIỆN BÊN GIAO\n(Ký, họ tên)',{i:true,h:'center',v:'top',sz:12});m(s2,tr+2,6,tr+7,9,'ĐẠI DIỆN BÊN NHẬN\n(Ký, họ tên)',{i:true,h:'center',v:'top',sz:12});
+
+ /* ===== Sheet 3: Đơn đặt hàng (A4 dọc, 1 trang) ===== */
+ const s3=wb.addWorksheet('Đơn đặt hàng');setup(s3,'portrait');
+ [6,12,40,8,10,10,8,13,9,12,14].forEach((w,i)=>s3.getColumn(i+1).width=w);
+ const F='Calibri';
+ ['Công ty Cổ phần MEDIAMART Việt Nam','Địa chỉ : 29F Hà Bà Trưng, Phường Tràng Tiền Quận Hoàn Kiếm','Điện thoại (Telephone): 024 3936 2099  Fax:','Mã số thuế (VAT code): 0102516308'].forEach((t,i)=>m(s3,i+1,1,i+1,6,t,{fn:F,sz:10,b:i==0}));
+ s3.addImage(logoId,{tl:{col:7.3,row:0.1},ext:{width:190,height:52}});
+ m(s3,6,1,6,11,'ĐƠN ĐẶT HÀNG TỔNG',{fn:F,b:true,h:'center',sz:13});s3.getRow(6).height=28;
+ const bo={fn:F,sz:10,bd:true,v:'top'};
+ for(let r=7;r<=13;r++)s3.getRow(r).height=r<=10?30:24;
+ m(s3,7,1,10,3,'NHÀ CUNG CẤP (VENDOR) :\nCTY CP MEDIA MART VN\nĐT (TEL):\nFAX:',bo);
+ m(s3,7,4,10,8,'ĐỊA CHỈ GIAO HÀNG (SHIP ADDRESS)\n\nĐT (TEL):\nFAX:',bo);
+ m(s3,7,9,7,11,'TRUNG TÂM (Store No.)',bo);m(s3,8,9,8,11,'SBH',bo);m(s3,9,9,9,11,'SỐ ĐƠN HÀNG (PO No.)',bo);m(s3,10,9,10,11,'NGÀY ĐẶT HÀNG (PO Date) : '+d0,bo);
+ m(s3,11,1,13,8,'BỘ PHẬN MUA HÀNG (PURCHASER)\nMã nhân viên (Staff No.): '+p.id+'\nTên nhân viên (Staff Name): '+p.name,bo);
+ m(s3,11,9,11,11,'NGÀY ĐẶT HÀNG (PO Date) : '+d0,bo);m(s3,12,9,12,11,'LOẠI TIỀN (Currency)',bo);m(s3,13,9,13,11,'VND',bo);
+ const h3=['Stt\n(No.)','Mã hàng\n(Item no.)','Tên hàng\n(Item description)','Demo','Mã kho\n(Location)','Số lượng\n(Quantity)','ĐVT\n(Unit)','Đơn giá\n(Unit price)','CK %\n(Line discount %)','Số tiền CK\n(Line discount amount)','Thành tiền\n(Amount)'];
+ h3.forEach((t,i)=>m(s3,15,i+1,15,i+1,t,{fn:F,sz:9,b:true,h:'center',bd:true}));s3.getRow(15).height=50;
+ for(let i=0;i<n;i++){const r=rows[i]||{},R0=16+i;s3.getRow(R0).height=26;
+  [i+1,r.mlk||'',r.tlk||'','',rows[i]?r.kho:'',r.sl??'','Chiếc','','','',''].forEach((v,ci)=>m(s3,R0,ci+1,R0,ci+1,v,{fn:F,sz:10,bd:true,b:ci==0||ci==6,h:ci==2?'left':'center'}))}
+ const g=16+n;s3.getRow(g).height=26;m(s3,g,1,g,5,'Grand Total',{fn:F,b:true,h:'center',bd:true});m(s3,g,6,g,6,tot,{fn:F,b:true,h:'center',bd:true});m(s3,g,7,g,11,'',{bd:true});
+ ['Tổng giá trị trước thuế (Total excl VAT amount)','Thuế GTGT (VAT amount)','Tổng giá trị đơn hàng (Total amount)'].forEach((t,i)=>m(s3,g+2+i,1,g+2+i,11,t,{fn:F,b:true,sz:10}));
+ const sg=g+6;
+ m(s3,sg,1,sg+5,3,'NHÂN VIÊN\nĐẶT HÀNG\n(Replenisher)\nHọ tên (Full name)\n'+p.name,{fn:F,b:true,i:true,h:'center',v:'top',sz:10});
+ m(s3,sg,4,sg+5,8,'Trưởng ngành hàng\n(Buyer Manager)\nHọ tên (Full name)',{fn:F,b:true,i:true,h:'center',v:'top',sz:10});
+ m(s3,sg,9,sg+5,11,'Tổng giám đốc\n(Director)\nHọ tên (Full name)',{fn:F,b:true,i:true,h:'center',v:'top',sz:10});
+ m(s3,sg+6,1,sg+6,3,'Ngày (Date)',{fn:F,sz:10,h:'center'});m(s3,sg+6,4,sg+6,8,'Ngày (Date)',{fn:F,sz:10,h:'center'});m(s3,sg+6,9,sg+6,11,'Ngày (Date)',{fn:F,sz:10,h:'center'});
+
+ try{const buf=await wb.xlsx.writeBuffer();return{blob:new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),name:'DX_Tang_Ton_LK_'+new Date().toISOString().slice(0,10)+'.xlsx'}}catch(e){toast('Lỗi tạo Excel: '+e.message);return null}}
+async function saveXls(){const x=await buildXls();if(!x)return;const a=document.createElement('a');a.href=URL.createObjectURL(x.blob);a.download=x.name;a.click();toast('Đã lưu Excel gồm 3 sheet')}
 $('xls').onclick=saveXls;
 function doPrint(pane,id){
  if(!rows.length)return toast('Chưa có dữ liệu đề xuất');
@@ -165,5 +240,5 @@ function doPrint(pane,id){
  const W=(land?281:194)*3.7795,H=(land?194:281)*3.7795,z=Math.min(1,W/el.scrollWidth,H/el.scrollHeight)*0.97;el.style.zoom=z;
  window.onafterprint=()=>{pn.classList.remove('printing');el.style.zoom=1;modal.style.display='flex';window.onafterprint=null};
  setTimeout(()=>window.print(),150)}
-const modal=$('modal');render();
+const modal=$('modal'),zmodal=$('zmodal');render();
 </script></body></html>
