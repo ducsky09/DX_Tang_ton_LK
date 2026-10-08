@@ -72,7 +72,7 @@ table.l{width:100%;border-collapse:collapse;font-size:13px}table.l th,table.l td
   <div><label>Số PBH khách *</label><input id="f_khach"><div class="err" id="e_f_khach"></div></div>
   <div><label>Ghi chú</label><input id="f_gc" value="Biên bản bàn giao hàng hóa-"></div>
  </div>
- <div class="bar"><button class="btn" id="add">➕ Thêm vào danh sách</button><button class="btn g" id="send">📤 Send Admin</button><button class="btn w" id="xls">💾 Lưu Excel</button></div></div>
+ <div class="bar"><button class="btn" id="add">➕ Thêm vào danh sách</button><button class="btn w" id="xls">💾 Lưu Excel</button><button class="btn g" id="send">📤 Send Admin</button></div></div>
  <div class="card tbl"><b>Danh sách đề xuất</b><table class="l" id="list"></table></div>
 </section>
 <section class="pane" id="t_bb"><div class="sheetwrap"><div class="form" id="bbForm"></div></div>
@@ -234,7 +234,7 @@ async function buildXls(){
  m(s3,sg+6,1,sg+6,3,'Ngày (Date)',{fn:F,sz:10,h:'center'});m(s3,sg+6,4,sg+6,8,'Ngày (Date)',{fn:F,sz:10,h:'center'});m(s3,sg+6,9,sg+6,11,'Ngày (Date)',{fn:F,sz:10,h:'center'});
 
  try{const buf=await wb.xlsx.writeBuffer();return{blob:new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),name:'DX_Tang_Ton_LK_'+new Date().toISOString().slice(0,10)+'.xlsx'}}catch(e){toast('Lỗi tạo Excel: '+e.message);return null}}
-async function saveXls(){const x=await buildXls();if(!x)return;const a=document.createElement('a');a.href=URL.createObjectURL(x.blob);a.download=x.name;a.click();toast('Đã lưu Excel gồm 3 sheet')}
+async function saveXls(){const x=await buildXls();if(!x)return;const a=document.createElement('a');a.href=URL.createObjectURL(x.blob);const kho=(profile&&profile.kho)||(rows[0]&&rows[0].kho)||'';a.download=kho?x.name.replace(/\.xlsx$/,'_'+kho+'.xlsx'):x.name;a.click();toast('Đã lưu Excel gồm 3 sheet - Code kho '+kho)}
 $('xls').onclick=saveXls;
 function doPrint(pane,id){
  if(!rows.length)return toast('Chưa có dữ liệu đề xuất');
